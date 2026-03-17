@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LexiAid — Understand Any Legal Document</title>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+      --border: #30363d; --accent: #58a6ff; --green: #3fb950;
+      --yellow: #d29922; --red: #f85149; --orange: #e3b341;
+      --text: #e6edf3; --dim: #8b949e; --white: #ffffff;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    /* ── NAV ── */
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; gap: 12px; }
+    nav .logo { font-size: 20px; font-weight: 700; color: var(--white); }
+    nav .logo span { color: var(--accent); }
+    nav .tagline { font-size: 13px; color: var(--dim); }
+    nav .nav-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+    nav .admin-link { font-size: 13px; color: var(--dim); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; }
+    nav .admin-link:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero { padding: 48px 32px 32px; max-width: 900px; margin: 0 auto; text-align: center; }
+    .hero h1 { font-size: 36px; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+    .hero h1 em { color: var(--accent); font-style: normal; }
+    .hero p { color: var(--dim); font-size: 16px; max-width: 560px; margin: 0 auto 32px; }
+
+    /* ── INPUT CARD ── */
+    .input-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; max-width: 900px; margin: 0 auto 32px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+    .tab { padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; border: 1px solid transparent; color: var(--dim); background: transparent; transition: all 0.15s; }
+    .tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+    .tab:hover:not(.active) { border-color: var(--border); color: var(--text); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    textarea { width: 100%; height: 200px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; color: var(--text); font-size: 14px; line-height: 1.6; resize: vertical; font-family: inherit; }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    textarea::placeholder { color: var(--dim); }
+
+    .upload-zone { border: 2px dashed var(--border); border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.15s; }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(88,166,255,0.05); }
+    .upload-zone .icon { font-size: 36px; margin-bottom: 10px; }
+    .upload-zone p { color: var(--dim); font-size: 14px; }
+    .upload-zone strong { color: var(--accent); }
+    #file-input { display: none; }
+    #file-name { margin-top: 10px; font-size: 13px; color: var(--green); font-weight: 500; }
+
+    /* Classifier toggle */
+    .options-row { display: flex; gap: 20px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+    .toggle-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); cursor: pointer; }
+    .toggle-label input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+    .toggle-label:hover { color: var(--text); }
+    .badge-info { font-size: 11px; background: rgba(88,166,255,0.12); color: var(--accent); padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(88,166,255,0.25); }
+
+    .btn-primary { margin-top: 20px; width: 100%; padding: 14px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: opacity 0.15s; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── STATUS ── */
+    .status { max-width: 900px; margin: 0 auto 24px; padding: 14px 20px; border-radius: 8px; font-size: 14px; display: none; align-items: center; gap: 10px; }
+    .status.loading { display: flex; background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.3); color: var(--accent); }
+    .status.error { display: flex; background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); color: var(--red); }
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(88,166,255,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TRANSLATE BAR ── */
+    #translate-bar { max-width: 900px; margin: 0 auto 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
+    #translate-bar.visible { display: flex; }
+    #translate-bar label { font-size: 13px; color: var(--dim); font-weight: 600; white-space: nowrap; }
+    #lang-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    #lang-select:focus { outline: none; border-color: var(--accent); }
+    #translate-btn { padding: 7px 18px; background: var(--accent); color: #000; border: none; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    #translate-btn:hover { opacity: 0.85; }
+    #translate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .translate-spinner { width: 14px; height: 14px; border: 2px solid rgba(88,166,255,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+    #rag-badge { font-size: 12px; color: var(--green); background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.25); padding: 3px 10px; border-radius: 10px; margin-left: auto; }
+
+    /* ── RESULTS ── */
+    #results { max-width: 900px; margin: 0 auto 48px; display: none; }
+
+    .risk-banner { border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 16px; }
+    .risk-banner.low    { background: rgba(63,185,80,0.1);  border: 1px solid rgba(63,185,80,0.3);  }
+    .risk-banner.medium { background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.3); }
+    .risk-banner.high   { background: rgba(248,81,73,0.1);  border: 1px solid rgba(248,81,73,0.3);  }
+    .risk-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; flex-shrink: 0; margin-top: 2px; }
+    .risk-badge.low    { background: var(--green);  color: #000; }
+    .risk-badge.medium { background: var(--yellow); color: #000; }
+    .risk-badge.high   { background: var(--red);    color: #fff; }
+    .risk-banner .info h3 { font-size: 16px; margin-bottom: 4px; }
+    .risk-banner .info p  { font-size: 14px; color: var(--dim); line-height: 1.5; }
+
+    .summary-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; }
+    .summary-box h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-bottom: 10px; }
+    .summary-box p { font-size: 15px; line-height: 1.65; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+    .list-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; }
+    .list-box h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-bottom: 12px; }
+    .list-box ul { list-style: none; }
+    .list-box ul li { padding: 6px 0; font-size: 14px; line-height: 1.5; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 8px; }
+    .list-box ul li:last-child { border-bottom: none; }
+    .list-box ul li .dot { flex-shrink: 0; margin-top: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+    .red-flags-box { background: rgba(248,81,73,0.05); border: 1px solid rgba(248,81,73,0.25); border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; }
+    .red-flags-box h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--red); margin-bottom: 12px; }
+    .red-flags-box ul { list-style: none; }
+    .red-flags-box ul li { padding: 8px 0; font-size: 14px; line-height: 1.5; border-bottom: 1px solid rgba(248,81,73,0.15); display: flex; gap: 10px; }
+    .red-flags-box ul li:last-child { border-bottom: none; }
+    .red-flags-box .flag-icon { flex-shrink: 0; }
+
+    .sections-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-bottom: 14px; }
+
+    .clause-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 12px; }
+    .clause-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; cursor: pointer; }
+    .clause-heading { font-size: 14px; font-weight: 600; }
+    .clause-risk { padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .clause-risk.none   { background: rgba(139,148,158,0.15); color: var(--dim); }
+    .clause-risk.low    { background: rgba(63,185,80,0.15);   color: var(--green); }
+    .clause-risk.medium { background: rgba(210,153,34,0.15);  color: var(--orange); }
+    .clause-risk.high   { background: rgba(248,81,73,0.15);   color: var(--red); }
+    .clause-body { display: none; }
+    .clause-body.open { display: block; }
+    .clause-simplified { font-size: 14px; line-height: 1.65; margin-bottom: 8px; }
+    .clause-original { font-size: 12px; color: var(--dim); line-height: 1.5; font-style: italic; padding: 10px; background: var(--surface2); border-radius: 6px; margin-bottom: 8px; }
+    .clause-risk-note { font-size: 13px; color: var(--red); background: rgba(248,81,73,0.08); border-left: 3px solid var(--red); padding: 8px 12px; border-radius: 0 4px 4px 0; margin-bottom: 8px; }
+
+    /* Classifier tags */
+    .classifier-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .clf-tag { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 10px; border: 1px solid rgba(188,140,255,0.35); background: rgba(188,140,255,0.08); color: var(--purple); }
+    .clf-tag.high-risk { border-color: rgba(248,81,73,0.4); background: rgba(248,81,73,0.08); color: var(--red); }
+    .clf-layer { font-size: 11px; color: var(--dim); display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+    .clf-layer span { background: var(--surface2); padding: 1px 6px; border-radius: 4px; }
+
+    .truncated-warning { background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.3); border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--orange); margin-bottom: 20px; }
+
+    .chevron { transition: transform 0.2s; color: var(--dim); }
+    .chevron.open { transform: rotate(180deg); }
+
+    footer { text-align: center; padding: 24px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Lexi<span>Aid</span></div>
+  <div class="tagline">Understand any legal document in plain language</div>
+  <div class="nav-right">
+    <a href="/admin" class="admin-link" target="_blank">⚙ Admin / RAG Ingest</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Legal documents, <em>simplified.</em></h1>
+  <p>Paste any contract, agreement, or legal notice — LexiAid explains it in plain language, flags risky clauses, and tells you what to watch out for.</p>
+</div>
+
+<!-- INPUT -->
+<div class="input-card">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('text')">Paste Text</button>
+    <button class="tab" onclick="switchTab('file')">Upload File</button>
+  </div>
+
+  <div id="tab-text" class="tab-panel active">
+    <textarea id="doc-text" placeholder="Paste your legal document here — employment contract, rental agreement, terms of service, loan document, NDA..."></textarea>
+  </div>
+
+  <div id="tab-file" class="tab-panel">
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="icon">📄</div>
+      <p>Click to upload or drag and drop</p>
+      <p><strong>PDF</strong> or <strong>DOCX</strong> supported</p>
+      <div id="file-name"></div>
+    </div>
+    <input type="file" id="file-input" accept=".pdf,.docx" onchange="handleFileSelect(this)"/>
+  </div>
+
+  <div class="options-row">
+    <label class="toggle-label">
+      <input type="checkbox" id="opt-classifier" checked/>
+      NLP Clause Classifier
+      <span class="badge-info">rule-based + regex</span>
+    </label>
+    <label class="toggle-label">
+      <input type="checkbox" id="opt-zero-shot"/>
+      Zero-shot AI (HuggingFace)
+      <span class="badge-info">slower, more accurate</span>
+    </label>
+  </div>
+
+  <button class="btn-primary" id="analyze-btn" onclick="analyze()">Analyse Document</button>
+</div>
+
+<!-- STATUS -->
+<div class="status" id="status">
+  <div class="spinner" id="spinner"></div>
+  <span id="status-text">Analysing document...</span>
+</div>
+
+<!-- TRANSLATE BAR -->
+<div id="translate-bar">
+  <label>Translate to:</label>
+  <select id="lang-select">
+    <option value="en">English (Original)</option>
+    <option value="hi">Hindi (हिन्दी)</option>
+    <option value="bn">Bengali (বাংলা)</option>
+    <option value="ta">Tamil (தமிழ்)</option>
+    <option value="te">Telugu (తెలుగు)</option>
+    <option value="mr">Marathi (मराठी)</option>
+    <option value="gu">Gujarati (ગુજરાતી)</option>
+    <option value="kn">Kannada (ಕನ್ನಡ)</option>
+    <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+    <option value="ur">Urdu (اردو)</option>
+  </select>
+  <button id="translate-btn" onclick="translateResults()">Translate</button>
+  <div class="translate-spinner" id="translate-spinner"></div>
+  <div id="rag-badge" style="display:none">⚡ RAG context used</div>
+</div>
+
+<!-- RESULTS -->
+<div id="results"></div>
+
+<footer>LexiAid · Built by Ankit Bisht · Powered by Gemini + Pinecone + HuggingFace</footer>
+
+<script>
+let activeTab = 'text';
+let selectedFile = null;
+let lastResult = null;   // store last analysis result for re-translation
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'text') || (i === 1 && tab === 'file'));
+  });
+  document.getElementById('tab-text').classList.toggle('active', tab === 'text');
+  document.getElementById('tab-file').classList.toggle('active', tab === 'file');
+}
+
+function handleFileSelect(input) {
+  selectedFile = input.files[0];
+  document.getElementById('file-name').textContent = selectedFile ? `✓ ${selectedFile.name}` : '';
+}
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) { selectedFile = f; document.getElementById('file-name').textContent = `✓ ${f.name}`; }
+});
+
+// ── Status helper ────────────────────────────────────────────────────────────
+function setStatus(type, text) {
+  const el = document.getElementById('status');
+  el.className = `status ${type}`;
+  document.getElementById('status-text').textContent = text;
+  document.getElementById('spinner').style.display = type === 'loading' ? 'block' : 'none';
+}
+
+// ── Analyse ──────────────────────────────────────────────────────────────────
+async function analyze() {
+  const btn = document.getElementById('analyze-btn');
+  const resultsEl = document.getElementById('results');
+  resultsEl.style.display = 'none';
+  resultsEl.innerHTML = '';
+  document.getElementById('translate-bar').classList.remove('visible');
+  lastResult = null;
+
+  const formData = new FormData();
+  if (activeTab === 'text') {
+    const text = document.getElementById('doc-text').value.trim();
+    if (!text) { setStatus('error', 'Please paste a document first'); return; }
+    formData.append('text', text);
+  } else {
+    if (!selectedFile) { setStatus('error', 'Please select a file first'); return; }
+    formData.append('file', selectedFile);
+  }
+
+  const useClassifier   = document.getElementById('opt-classifier').checked;
+  const useZeroShot     = document.getElementById('opt-zero-shot').checked;
+  formData.append('use_classifier', useClassifier);
+  formData.append('classifier_zero_shot', useZeroShot);
+
+  btn.disabled = true;
+  const zeroShotNote = useZeroShot ? ' (zero-shot model loading may take a moment on first run)' : '';
+  setStatus('loading', `Analysing document with Gemini${zeroShotNote}...`);
+
+  try {
+    const resp = await fetch('/simplify', { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (!resp.ok) { setStatus('error', data.detail || 'Analysis failed'); return; }
+
+    document.getElementById('status').className = 'status';
+    lastResult = data;
+    renderResults(data);
+    showTranslateBar(data);
+
+  } catch(e) {
+    setStatus('error', 'Network error — is the server running?');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Translate ────────────────────────────────────────────────────────────────
+function showTranslateBar(data) {
+  const bar = document.getElementById('translate-bar');
+  bar.classList.add('visible');
+  const ragBadge = document.getElementById('rag-badge');
+  ragBadge.style.display = data.rag_used ? 'block' : 'none';
+}
+
+async function translateResults() {
+  if (!lastResult) return;
+  const lang = document.getElementById('lang-select').value;
+  if (lang === 'en') {
+    renderResults(lastResult);
+    return;
+  }
+
+  const btn = document.getElementById('translate-btn');
+  const spinner = document.getElementById('translate-spinner');
+  btn.disabled = true;
+  spinner.style.display = 'block';
+
+  try {
+    const resp = await fetch('/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result: lastResult, target_lang: lang }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { alert(data.detail || 'Translation failed'); return; }
+    renderResults(data);
+  } catch(e) {
+    alert('Translation network error');
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function riskColor(risk) {
+  return { none: 'none', low: 'low', medium: 'medium', high: 'high' }[risk] || 'none';
+}
+
+function renderClassifierTags(section) {
+  const clf = section.classifier;
+  if (!clf || !clf.clause_labels || clf.clause_labels.length === 0) return '';
+
+  const HIGH_RISK_TYPES = new Set(['arbitration','waiver_of_rights','auto_renewal','unilateral_modification','non_compete','liquidated_damages']);
+
+  const tags = clf.clause_labels.map((label, i) => {
+    const key = clf.clause_types[i] || '';
+    const isHigh = HIGH_RISK_TYPES.has(key);
+    return `<span class="clf-tag${isHigh ? ' high-risk' : ''}" title="${key}">${escHtml(label)}</span>`;
+  }).join('');
+
+  const layers = [];
+  if (clf.rule_based && clf.rule_based.length) layers.push(`<span>regex</span>`);
+  if (clf.zero_shot  && clf.zero_shot.length)  layers.push(`<span>zero-shot</span>`);
+  const layerInfo = layers.length
+    ? `<div class="clf-layer">detected by: ${layers.join(' + ')}</div>`
+    : '';
+
+  return `<div class="classifier-tags">${tags}</div>${layerInfo}`;
+}
+
+function renderResults(data) {
+  const el = document.getElementById('results');
+  el.style.display = 'block';
+
+  const riskEmoji = { low: '✅', medium: '⚠️', high: '🚨' }[data.risk_level] || '📄';
+  const riskLabel = (data.risk_level || 'unknown').toUpperCase();
+
+  let html = '';
+
+  if (data.was_truncated) {
+    html += `<div class="truncated-warning">⚠️ Document was truncated for analysis (first 12,000 characters). For full accuracy, split the document into smaller sections.</div>`;
+  }
+
+  // Risk banner
+  html += `<div class="risk-banner ${data.risk_level}">
+    <span class="risk-badge ${data.risk_level}">${riskLabel}</span>
+    <div class="info">
+      <h3>${riskEmoji} Overall Risk: ${riskLabel}</h3>
+      <p>${escHtml(data.risk_reason || '')}</p>
+    </div>
+  </div>`;
+
+  // Summary
+  html += `<div class="summary-box">
+    <h3>Plain Language Summary</h3>
+    <p>${escHtml(data.summary || '')}</p>
+  </div>`;
+
+  // Red flags
+  if (data.red_flags && data.red_flags.length > 0) {
+    html += `<div class="red-flags-box"><h3>🚩 Red Flags — Read These Carefully</h3><ul>`;
+    data.red_flags.forEach(f => {
+      html += `<li><span class="flag-icon">⚠️</span>${escHtml(f)}</li>`;
+    });
+    html += `</ul></div>`;
+  }
+
+  // Obligations + Rights
+  html += `<div class="two-col">`;
+  if (data.key_obligations && data.key_obligations.length > 0) {
+    html += `<div class="list-box"><h3>📋 Your Obligations</h3><ul>`;
+    data.key_obligations.forEach(o => html += `<li><span class="dot"></span>${escHtml(o)}</li>`);
+    html += `</ul></div>`;
+  }
+  if (data.key_rights && data.key_rights.length > 0) {
+    html += `<div class="list-box"><h3>🛡️ Your Rights</h3><ul>`;
+    data.key_rights.forEach(r => html += `<li><span class="dot" style="background:var(--green)"></span>${escHtml(r)}</li>`);
+    html += `</ul></div>`;
+  }
+  html += `</div>`;
+
+  // Clause-by-clause breakdown
+  if (data.sections && data.sections.length > 0) {
+    html += `<p class="sections-title">📑 Clause-by-Clause Breakdown</p>`;
+    data.sections.forEach((sec, i) => {
+      const risk = riskColor(sec.risk);
+      const classifierHtml = renderClassifierTags(sec);
+      html += `<div class="clause-card">
+        <div class="clause-header" onclick="toggleClause(${i})">
+          <span class="clause-heading">${escHtml(sec.heading || `Clause ${i+1}`)}</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="clause-risk ${risk}">${(sec.risk || 'none').toUpperCase()}</span>
+            <span class="chevron" id="chev-${i}">▾</span>
+          </div>
+        </div>
+        <div class="clause-body" id="clause-${i}">
+          <p class="clause-simplified">${escHtml(sec.simplified || '')}</p>
+          ${sec.original ? `<p class="clause-original">${escHtml(sec.original)}</p>` : ''}
+          ${sec.risk_note ? `<div class="clause-risk-note">⚠️ ${escHtml(sec.risk_note)}</div>` : ''}
+          ${classifierHtml}
+        </div>
+      </div>`;
+    });
+  }
+
+  el.innerHTML = html;
+
+  // Auto-open high/medium risk clauses
+  if (data.sections) {
+    data.sections.forEach((sec, i) => {
+      if (sec.risk === 'high' || sec.risk === 'medium') {
+        document.getElementById(`clause-${i}`).classList.add('open');
+        document.getElementById(`chev-${i}`).classList.add('open');
+      }
+    });
+  }
+}
+
+function toggleClause(i) {
+  const body = document.getElementById(`clause-${i}`);
+  const chev = document.getElementById(`chev-${i}`);
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
